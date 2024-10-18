@@ -3,6 +3,8 @@ import React, { useEffect } from 'react';
 import { Slot, useRouter } from 'expo-router';
 import { useAuth, AuthContextProvider } from '../context/authContext';
 import { StatusBar } from 'expo-status-bar';
+import ImpactSensor from '../components/ImpactSensor';
+import MapScreen from '../components/MapScreen';
 
 const MainLayout = () => {
   const { isAuthenticated } = useAuth();

@@ -37,7 +37,7 @@ export default function Home() {
               zIndex: 1
             }}>
               {/* Toggle the MapScreen visibility on press */}
-              <TouchableOpacity onPress={() => router.push('')}>
+              <TouchableOpacity  onPress={()=> router.push('/map')}>
                 <Feather name='settings' size={30} color='#FFFF' />
               </TouchableOpacity>
 

@@ -2,7 +2,6 @@ import { FontAwesome } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { View, Image, StyleSheet, Pressable, Text, StatusBar, TextInput, TouchableOpacity } from 'react-native';
-import Home from './(app)/home';
 
 export default function SignIn() {
   const [activeTab, setActiveTab] = useState('User'); // State for active tab
