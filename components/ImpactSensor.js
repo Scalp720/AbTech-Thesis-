@@ -4,12 +4,14 @@ import { Accelerometer } from 'expo-sensors';
 import * as Location from 'expo-location';
 import { db } from '../context/firebaseConfig';
 import { collection, addDoc } from 'firebase/firestore';
+import { useNavigation } from '@react-navigation/native'; // For navigation
 
 export default function ImpactSensor({ onImpactDetected }) {
   const [impactDetected, setImpactDetected] = useState(false);
   const [isHolding, setIsHolding] = useState(false);
   const [countdown, setCountdown] = useState(3); // Countdown state (3 seconds)
   const countdownInterval = useRef(null); // To track countdown decrement
+  const navigation = useNavigation(); // To navigate to map.js
 
   useEffect(() => {
     return () => {
@@ -40,8 +42,16 @@ export default function ImpactSensor({ onImpactDetected }) {
         Alert.alert('Impact Detected', 'An impact has been detected.');
 
         // Store the location and remove the listener
-        await getLocationAndStore();
+        const location = await getLocationAndStore();
         accelerometerSubscription.remove(); // Stop further detection
+
+        // If impact is detected, navigate to map.js (MapScreen) and pass location using router.push
+        if (location) {
+          router.push({
+            pathname: '../../map', // Adjust the path according to your route setup
+            state: { latitude: location.latitude, longitude: location.longitude }, // Pass the location as state
+          });
+        }
 
         if (onImpactDetected) {
           onImpactDetected();
@@ -60,12 +70,12 @@ export default function ImpactSensor({ onImpactDetected }) {
 
       const { latitude, longitude } = location.coords;
       const [address] = await Location.reverseGeocodeAsync({ latitude, longitude });
-      const formattedAddress = address ?
-        `${address.district || ''}, ${address.city || ''}, ${address.region || ''}, ${address.country || ''}` :
-        'Address not found';
+      const formattedAddress = address
+        ? `${address.district || ''}, ${address.city || ''}, ${address.region || ''}, ${address.country || ''}`
+        : 'Address not found';
 
       // Store the location in the 'needResponse' collection
-      await addDoc(collection(db, 'needResponse'), {
+      await addDoc(collection(db, 'Users'), {
         latitude,
         longitude,
         address: formattedAddress,
@@ -74,9 +84,11 @@ export default function ImpactSensor({ onImpactDetected }) {
       });
 
       Alert.alert('Success', 'Your location has been stored. Please wait for the responder!');
+      return { latitude, longitude }; // Return coordinates for navigation
     } catch (error) {
       console.error('Error storing location in Firebase:', error.message);
       Alert.alert('Error', 'Unable to store location in Firebase. Please check your configuration and network.');
+      return null;
     }
   };
 
@@ -87,7 +99,7 @@ export default function ImpactSensor({ onImpactDetected }) {
 
     // Start the countdown
     countdownInterval.current = setInterval(() => {
-      setCountdown(prevCountdown => {
+      setCountdown((prevCountdown) => {
         if (prevCountdown === 1) {
           clearInterval(countdownInterval.current); // Stop countdown at 0
           startImpactDetection(); // Activate accelerometer when countdown ends
@@ -117,29 +129,33 @@ export default function ImpactSensor({ onImpactDetected }) {
           style={{ width: 300, height: 300 }}
         />
         {/* Overlayed SOS Text */}
-        <Text style={{
-          position: 'absolute',
-          top: '30%',// Positioned absolutely within the TouchableOpacity
-          right: '10%', // 10% from the right
-          left: '10%',  // 10% from the left
-          textAlign: 'center', // Centers the text horizontally within the space
-          fontSize: 40,
-          fontWeight: 'bold',
-          color: 'white',
-        }}>
+        <Text
+          style={{
+            position: 'absolute',
+            top: '30%', // Positioned absolutely within the TouchableOpacity
+            right: '10%', // 10% from the right
+            left: '10%', // 10% from the left
+            textAlign: 'center', // Centers the text horizontally within the space
+            fontSize: 40,
+            fontWeight: 'bold',
+            color: 'white',
+          }}
+        >
           S.O.S
         </Text>
         {/* Countdown Timer or Hold 3 Seconds */}
-        <Text style={{
-          position: 'absolute',
-          top: '50%', // 50% from the top
-          right: '10%', // 10% from the right
-          left: '10%',  // 10% from the left
-          textAlign: 'center', // Centers the text horizontally within the space
-          fontSize: 20,
-          fontWeight: 'bold',
-          color: 'white',
-        }}>
+        <Text
+          style={{
+            position: 'absolute',
+            top: '50%', // 50% from the top
+            right: '10%', // 10% from the right
+            left: '10%', // 10% from the left
+            textAlign: 'center', // Centers the text horizontally within the space
+            fontSize: 20,
+            fontWeight: 'bold',
+            color: 'white',
+          }}
+        >
           {isHolding ? (countdown > 0 ? `${countdown} Seconds` : 'Activated!') : 'Hold 3 Seconds'}
         </Text>
       </TouchableOpacity>

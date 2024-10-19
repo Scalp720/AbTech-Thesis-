@@ -1,133 +1,172 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { StyleSheet, View, Text, ActivityIndicator, Image, TouchableOpacity, Animated } from 'react-native'; // Make sure Animated is imported from 'react-native'
 import MapView, { Marker, UrlTile } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { FontAwesome } from '@expo/vector-icons'; // Import vector icon pack
-import { DeviceMotion } from 'expo-sensors'; // For device orientation
+import { useNavigation } from '@react-navigation/native'; // For navigation
+import { AntDesign } from '@expo/vector-icons'; // Import the icon library
+import { db, doc, setDoc } from '../../context/firebaseConfig'; // Firestore imports
 
 export default function App() {
-  const [location, setLocation] = useState(null);
-  const [heading, setHeading] = useState(null); // State for the heading
-  const [orientation, setOrientation] = useState(0); // State for device orientation
-  const [errorMsg, setErrorMsg] = useState(null);
-  const [watcher, setWatcher] = useState(null); // To store location watcher
+  const [location, setLocation] = useState(null); // State for real-time location
+  const [errorMsg, setErrorMsg] = useState(null); // Error message state
+  const radarAnimation = useRef(new Animated.Value(0)).current; // Radar animation reference
+
+  const navigation = useNavigation(); // Hook to access navigation
+
+  // Function to upload real-time location data to Firestore
+  const updateLocationInFirestore = async (latitude, longitude) => {
+    try {
+      const locationRef = doc(db, 'Users', 'Location-Details');
+      await setDoc(locationRef, {
+        latitude,
+        longitude,
+        timestamp: Date.now(),
+      }, { merge: true });
+    } catch (error) {
+      console.error("Error saving location to Firestore:", error);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
+    // Start radar pulse animation
+    const startRadarAnimation = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(radarAnimation, {
+            toValue: 1,
+            duration: 2000,
+            useNativeDriver: true,
+          }),
+          Animated.timing(radarAnimation, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: true,
+          }),
+        ]),
+      ).start();
+    };
+
+    startRadarAnimation();
+
+    // Start location tracking
+    const startLocationTracking = async () => {
       let { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setErrorMsg('Permission to access location was denied');
         return;
       }
 
-      // Start real-time location monitoring
       const locationWatcher = await Location.watchPositionAsync(
         {
           accuracy: Location.Accuracy.High,
-          timeInterval: 1000, // Update location every 1 second
-          distanceInterval: 1, // Update when the user moves by 1 meter
+          timeInterval: 1000,
+          distanceInterval: 1,
         },
         (newLocation) => {
-          setLocation(newLocation.coords); // Update the location state with real-time data
+          const { latitude, longitude } = newLocation.coords;
+          setLocation(newLocation.coords); // Update location state
+          updateLocationInFirestore(latitude, longitude); // Save location to Firestore
         }
       );
 
-      // Start real-time heading monitoring
-      const headingWatcher = await Location.watchHeadingAsync((headingData) => {
-        setHeading(headingData.trueHeading); // Update heading (true heading)
-      });
-
-      // Start device orientation monitoring
-      const orientationListener = DeviceMotion.addListener(({ orientation }) => {
-        setOrientation(orientation); // Update device orientation
-      });
-
-      // Set watchers to clean them up later
-      setWatcher(locationWatcher);
-
       return () => {
-        if (watcher) watcher.remove(); // Clean up location watcher on unmount
-        if (headingWatcher) headingWatcher.remove(); // Clean up heading watcher on unmount
-        if (orientationListener) orientationListener.remove(); // Clean up orientation listener
+        if (locationWatcher) locationWatcher.remove(); // Clean up on unmount
       };
-    })();
+    };
+
+    startLocationTracking();
   }, []);
 
-  let text = 'Waiting for location...';
+  let displayText = 'Waiting for location...';
   if (errorMsg) {
-    text = errorMsg;
+    displayText = errorMsg;
   } else if (location) {
-    text = JSON.stringify(location);
+    displayText = `Lat: ${location.latitude}, Lng: ${location.longitude}`;
   }
-
-  // Calculate the adjusted rotation based on heading and device orientation
-  const getAdjustedRotation = () => {
-    if (heading === null || orientation === null) return 0;
-    return (heading + orientation) % 360; // Adjust rotation based on device orientation
-  };
 
   return (
     <View style={styles.container}>
+      {/* Back Icon */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => navigation.goBack()} // Go back to the previous screen
+      >
+        <AntDesign name="arrowleft" size={24} color="white" />
+      </TouchableOpacity>
+
       {location ? (
         <MapView
           style={styles.map}
           initialRegion={{
             latitude: location.latitude,
             longitude: location.longitude,
-            latitudeDelta: 0.005, // Zoom closer initially
+            latitudeDelta: 0.005,
             longitudeDelta: 0.005,
           }}
           region={{
             latitude: location.latitude,
             longitude: location.longitude,
-            latitudeDelta: 0.005, // Zoom closer initially
+            latitudeDelta: 0.005,
             longitudeDelta: 0.005,
           }}
-          showsUserLocation={false} // Disable default user location marker
+          showsUserLocation={false}
           loadingEnabled={true}
-          zoomEnabled={true} // Enable zooming
-          scrollEnabled={true} // Enable scrolling/panning
+          zoomEnabled={true}
+          scrollEnabled={true}
         >
           <UrlTile
-            /**
-             * OpenStreetMap Tile URL Template
-             * The {z}, {x}, {y} values are replaced by the zoom level and tile indexes.
-             * Tile servers: https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png
-             */
             urlTemplate="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             maximumZ={19}
             flipY={false}
             tileSize={256}
           />
 
-          {/* Single navigation arrow marker */}
-          {location && heading !== null && (
-            <Marker
-              coordinate={{
-                latitude: location.latitude,
-                longitude: location.longitude,
+          {/* Custom Marker with Radar Animation */}
+          <Marker
+            coordinate={{
+              latitude: location.latitude,
+              longitude: location.longitude,
+            }}
+            anchor={{ x: 0.5, y: 0.5 }}
+            flat={true}
+            tracksViewChanges={false}
+          >
+            {/* Radar animation */}
+            <Animated.View
+              style={[
+                styles.radarContainer,
+                {
+                  transform: [
+                    {
+                      scale: radarAnimation.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.5, 3], // Scale radar from 0.5x to 3x size
+                      }),
+                    },
+                  ],
+                  opacity: radarAnimation.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.3, 0], // Fade the radar out
+                  }),
+                },
+              ]}
+            />
+
+            {/* Pin Point Image */}
+            <Image
+              source={require('../../assets/images/src/pin-point.png')}
+              style={{
+                width: 40,
+                height: 60,
               }}
-              anchor={{ x: 0.5, y: 0.5 }} // Center the arrow on the marker
-              flat={true} // Allows the marker to rotate flat
-              rotation={getAdjustedRotation()} // Rotate the marker based on the adjusted heading
-              tracksViewChanges={false} // Prevent the marker from re-rendering on each change
-              icon={null} // Remove the default marker icon
-            >
-              {/* Custom arrow using FontAwesome */}
-              <FontAwesome
-                name="location-arrow"
-                size={40}
-                color="blue"
-                style={{ transform: [{ rotate: `${getAdjustedRotation()}deg` }] }}
-              />
-            </Marker>
-          )}
+            />
+          </Marker>
         </MapView>
       ) : (
         <ActivityIndicator size="large" color="#0000ff" />
       )}
       <View style={styles.locationBox}>
-        <Text style={styles.locationText}>{text}</Text>
+        <Text style={styles.locationText}>{displayText}</Text>
       </View>
     </View>
   );
@@ -141,16 +180,37 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  backButton: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    zIndex: 10,
+    backgroundColor: '#00000080', // Semi-transparent black background
+    borderRadius: 50,
+    padding: 10,
+  },
   locationBox: {
     position: 'absolute',
     bottom: 50,
     left: 20,
-    backgroundColor: 'white',
+    backgroundColor: '#006E60',
     padding: 10,
+    minWidth: '90%',
     borderRadius: 10,
   },
   locationText: {
-    color: 'black',
+    color: 'white',
+  },
+  radarContainer: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(253, 129, 127, 42)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: -1, // Ensure the radar is behind the pin point
+    top: -30, // Center the radar on the pin point
+    left: -30, // Center the radar on the pin point
   },
 });
- 

@@ -1,6 +1,8 @@
+// firebase.js
 import { initializeApp } from 'firebase/app';
-import { getFirestore } from 'firebase/firestore';
+import { getFirestore, doc, setDoc } from 'firebase/firestore'; // Import Firestore functions
 
+// Your Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDQZy57KYv-0DwjkKnXND6YAb_hIqIA4m8",
   authDomain: "impactdetection.firebaseapp.com",
@@ -11,7 +13,9 @@ const firebaseConfig = {
   measurementId: "G-7R9R2LJJRR"
 };
 
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = getFirestore(app); // Initialize Firestore
 
-export { db };
+// Export Firestore and necessary functions
+export { db, doc, setDoc };
