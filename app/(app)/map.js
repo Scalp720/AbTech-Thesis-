@@ -12,15 +12,35 @@ export default function App() {
   const radarAnimation = useRef(new Animated.Value(0)).current; // Radar animation reference
 
   const navigation = useNavigation(); // Hook to access navigation
+   // Get the current timestamp and convert it to a human-readable format
+
+ 
 
   // Function to upload real-time location data to Firestore
   const updateLocationInFirestore = async (latitude, longitude) => {
     try {
+      const now = new Date();
+      const formattedTimestamp = `${now.getFullYear()}-${(now.getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}-${now
+        .getDate()
+        .toString()
+        .padStart(2, '0')} ${now
+        .getHours()
+        .toString()
+        .padStart(2, '0')}:${now
+        .getMinutes()
+        .toString()
+        .padStart(2, '0')}:${now
+        .getSeconds()
+        .toString()
+        .padStart(2, '0')}`;
+        
       const locationRef = doc(db, 'Users', 'Location-Details');
       await setDoc(locationRef, {
         latitude,
         longitude,
-        timestamp: Date.now(),
+        timestamp: formattedTimestamp,
       }, { merge: true });
     } catch (error) {
       console.error("Error saving location to Firestore:", error);

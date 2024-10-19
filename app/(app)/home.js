@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { View, Image, Vibration, Text, TouchableOpacity } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { AntDesign, Feather } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native'; // Import useNavigation hook
 import { useRouter } from 'expo-router'; // Import router
 
 export default function Home() {
@@ -10,6 +11,8 @@ export default function Home() {
   const [isHolding, setIsHolding] = useState(false);
   const [countdown, setCountdown] = useState(3); // Countdown state (3 seconds)
   const countdownInterval = useRef(null); // To track countdown decrement
+  const navigation = useNavigation(); // Get the navigation object
+
 
   const handlePressIn = () => {
     setIsHolding(true);
@@ -64,7 +67,7 @@ export default function Home() {
               zIndex: 1
             }}>
               {/* Toggle the MapScreen visibility on press */}
-              <TouchableOpacity onPress={() => router.push('/map')}>
+              <TouchableOpacity   onPress={() => navigation.goBack()}>
                 <Feather name='settings' size={30} color='#FFFF' />
               </TouchableOpacity>
 

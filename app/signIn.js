@@ -93,16 +93,26 @@ export default function SignIn() {
         </Text>
 
         {/* Submit Button */}
-        <TouchableOpacity style={{ width: '90%' }} onPress={()=> router.push('/(app)/home')}>
+        <TouchableOpacity
+          style={{ width: '90%' }}
+          onPress={() => {
+            if (activeTab === 'User') {
+              router.push('/(app)/home'); // Navigate to User home
+            } else if (activeTab === 'Responder') {
+              router.push('/(responder)/home'); // Navigate to Responder home
+            }
+          }}
+        >
           <View style={styles.submitButton}>
             <Text style={styles.loginButtonText}>Log In</Text>
           </View>
         </TouchableOpacity>
 
         <View>
-          <Text style={{fontSize: 16,}}>New To AbTech? 
-            <Text style={{textDecorationLine:'underline', fontSize: 16,}}
-              onPress={()=> router.push('/signUp') }>Get Started</Text></Text>
+          <Text style={{ fontSize: 16 }}>New To AbTech?{' '}
+            <Text style={{ textDecorationLine: 'underline', fontSize: 16 }}
+              onPress={() => router.push('/signUp')}>Get Started</Text>
+          </Text>
         </View>
       </View>
     </View>
@@ -207,7 +217,6 @@ const styles = StyleSheet.create({
     height: 50,
     marginBottom: 20,
     borderRadius: 30,
-    // Orange border color for the submit button
   },
   loginButtonText: {
     color: 'white',
